@@ -42,85 +42,132 @@ X = data[["gender", "body_mass", "beak_length", "beak_depth", "fin_length"]].val
 y = data["bird category"].values
 
 
+
 class Perceptron:
-    def __init__(self, input_size, learning_rate, epochs, bias):
-        self.bias = bias  # Save the bias parameter to the instance
-        self.learning_rate = learning_rate
-        self.epochs = epochs
-        # Initialize weights with an additional slot for the bias if needed
-        self.weights = np.zeros(input_size + 1) if self.bias else np.zeros(input_size)
+    def __init__(self, select_eta, select_epoch, select_mse_thre, select_bias):
+        self.select_eta = select_eta
+        self.select_epoch = select_epoch
+        self.select_mse_thre = select_mse_thre
+        self.select_bias = select_bias
 
-    def predict(self, x):
-        if self.bias:
-            x = np.insert(x, 0, 1)
+    def signum(self, x):
+        return np.where(x >= 0, 1, 0)
 
-        activation = np.dot(x, self.weights)
-        return 1 if activation >= 0 else -1  
-    
+    def calculate_mse(self, y_true, y_pred):
+        return np.mean((y_true - y_pred) ** 2)
+
+    def calculate_accuracy(self, y_true, y_pred):
+        return np.mean(y_true == y_pred)
+
     def train(self, X, y):
-        for _ in range(self.epochs):
-            for i in range(len(X)):
-                x_i = X[i]
-                # Add bias term to the input vector if enabled
-                if self.bias:
-                    x_i = np.insert(x_i, 0, 1)
-                
-                # Prediction and error calculation
-                prediction = self.predict(x_i)
-                error = y[i] - prediction
+        if self.select_bias:
+            X = np.c_[np.ones(X.shape[0]), X]
+        else:
+            X = np.c_[np.zeros(X.shape[0]), X]
 
-                # Update weights
-                self.weights += self.learning_rate * error * x_i
+        self.weights = np.random.rand(X.shape[1])
+        mse_list = []
 
-    def evaluate(self, X, y):
-        correct_predictions = sum(self.predict(np.insert(x, 0, 1) if self.bias else x) == y_i for x, y_i in zip(X, y))
-        return correct_predictions / len(y)
+        for i in range(self.select_epoch):
+            net_value = np.dot(X, self.weights)
+            Pred_output=self.signum(net_value)
+            error = y - Pred_output
 
+            mse = self.calculate_mse(y, Pred_output)
+            mse_list.append(mse)
 
+            self.weights += self.select_eta * np.dot(X.T, error)
+
+            if mse < self.select_mse_thre:
+                break
+
+        return mse_list
+
+    def train(self, X):
+
+        if self.select_bias:
+            X = np.c_[np.ones(X.shape[0]), X]
+        else:
+            X = np.c_[np.zeros(X.shape[0]), X]
+
+        net_value = np.dot(X, self.weights)
+        Pred_output = self.signum(net_value)
+
+        return Pred_output
 
 
 
 class Adaline:
-    def __init__(self, input_size, learning_rate, epochs, mse_threshold, bias=True):
-        self.learning_rate = learning_rate
-        self.epochs = epochs
-        self.mse_threshold = mse_threshold
-        self.bias = bias
-        # Initialize weights: if bias is included, add 1 to the input size
-        self.weights = np.zeros(input_size + 1) if bias else np.zeros(input_size)
-        
-    def predict(self, X):
-        # If bias is included, add a column of 1's to X (for the bias term)
-        if self.bias:
-            X = np.insert(X, 0, 1, axis=1)  # Insert a column of 1's at the beginning
-        return np.dot(X, self.weights)  # Perform dot product
-    
-    def train(self, X, y):
-        for epoch in range(self.epochs):
-            # Make predictions for the current data
-            predictions = self.predict(X)
-            # Calculate the errors
-            errors = y - predictions
-            # Calculate the Mean Squared Error (MSE)
-            mse = np.mean(errors**2)
-            
-            # Check if MSE is less than the threshold, stop training if it is
-            if mse < self.mse_threshold:
-                print(f"Training stopped early at epoch {epoch + 1} due to MSE threshold")
-                break
-            
-            # Update the weights using the gradient descent rule
-            if self.bias:
-                X = np.insert(X, 0, 1, axis=1)  # Add bias term (1's) again for weight update
-            # Update weights based on error, learning rate, and input data
-            self.weights += self.learning_rate * np.dot(X.T, errors) / len(y)
+    def __init__(self, select_eta, select_epoch, select_mse_thre, select_bias):
+        self.select_eta = select_eta
+        self.select_epoch = select_epoch
+        self.select_mse_thre = select_mse_thre
+        self.select_bias = select_bias
 
-    def evaluate(self, X, y):
-        predictions = self.predict(X)
-        # Round predictions to nearest integer (binary 0 or 1 classification)
-        predictions = np.round(predictions)  # Convert predictions to 0 or 1
-        accuracy = np.mean(predictions == y)  # Calculate the accuracy
-        return accuracy
+    def act_linear(self, x):
+        return x
+
+    def calculate_mse(self, y_true, y_pred):
+        return np.mean((y_true - y_pred) ** 2)
+
+    def calculate_accuracy(self, y_true, y_pred):
+        return np.mean(y_true == y_pred)
+
+    def fit(self, X, y):
+        # Initialize the weights and Add_bias
+        if self.select_bias:
+            X = np.c_[np.ones(X.shape[0]), X]
+        else:
+            X = np.c_[np.zeros(X.shape[0]), X]
+
+        self.weights = np.random.rand(X.shape[1])
+        mse_list = []
+
+        for i in range(self.select_epoch):
+            net_value = np.dot(X, self.weights)
+            predic_output = self.act_linear(net_value)
+            error = y - predic_output
+
+            mse = self.calculate_mse(y, predic_output)
+            mse_list.append(mse)
+
+            self.weights += self.select_eta * np.dot(X.T, error)
+
+            # if MSE threshold found
+            if mse < self.select_mse_thre:
+                break
+
+        return mse_list
+
+    def predict(self, X):
+        # Add bias term to the features
+        if self.select_bias:
+            X = np.c_[np.ones(X.shape[0]), X]
+        else:
+            X = np.c_[np.zeros(X.shape[0]), X]
+
+        # Calculate the net value
+        net_value = np.dot(X, self.weights)
+        net_value = np.where(net_value >= 0.5, 1, 0)
+
+        # Calculate the actual output
+        predic_output = self.act_linear(net_value)
+        return predic_output
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -258,26 +305,24 @@ def submit():
         print("Algorithm:", "Perceptron" if algorithm == '1' else "Adaline")
 
         if algorithm == '1': 
-            # Initialize and train perceptron
-            perceptron = Perceptron(input_size=X_train.shape[1], learning_rate=learning_rate, epochs=epochs, bias=include_bias)
-            perceptron.train(X_train, y_train)
+            perceptron = Perceptron(learning_rate , epochs , mse_threshold , include_bias)
+            mseList = perceptron.train(X_train , y_train)
+            ypred = perceptron.predict(X_test)
+            finalMSE = mseList[-1]
+            print(f'Final Mean Squared Error for train (MSE): {finalMSE:.6f}')
+            accuracy = np.mean(y_test == ypred)
+            print(f'Accuracy: {accuracy * 100:.2f}%')
+
             
-            # Evaluate the model
-            accuracy = perceptron.evaluate(X_test, y_test)
-            print("Model accuracy on test set:", accuracy)
-
-            # Display predictions for each test input
-            for i, x in enumerate(X_test):
-                print(f"Input: {x}, Prediction: {perceptron.predict(x)}, Actual: {y_test[i]}")
-       
         elif algorithm == '0':  # Adaline
-            adaline = Adaline(input_size=X_train.shape[1], learning_rate=learning_rate, epochs=epochs, mse_threshold=mse_threshold, bias=include_bias)
-            adaline.train(X_train, y_train)
-            accuracy = adaline.evaluate(X_test, y_test)
-            print("Model accuracy on test set:", accuracy)
 
-    # except ValueError:
-    #     print("Please enter valid numeric values for Learning Rate, Epochs, and MSE Threshold")
+            adaline = Adaline(learning_rate , epochs,mse_threshold , include_bias)
+            mseList = adaline.train(X_train , y_train)
+            ypred = adaline.predict(X_test)
+            finalMSE = mseList[-1]
+            print(f'Final Mean Squared Error for train (MSE): {finalMSE}')
+            accuracy = adaline.calculate_accuracy(y_test, ypred)
+            print(f'Accuracy test: {accuracy * 100:.2f}%')
 
 
 btn_submit = tk.Button(root, text="Submit", command=submit)
